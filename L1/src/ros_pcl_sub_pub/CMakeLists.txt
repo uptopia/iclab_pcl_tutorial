@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(ros_pcl_sub_pub)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -135,6 +135,8 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/ros_pcl_sub_pub_node.cpp)
+add_executable(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/ros_pcl_sub_pub.cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

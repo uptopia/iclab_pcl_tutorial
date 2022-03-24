@@ -1,4 +1,18 @@
-#https://github.com/methylDragon/pcl-ros-tutorial/blob/master/Starter%20Code/minimal_pcl/src/minimal_pub_sub.cpp
+//CMakeLists.txt
+//要改add_compile_options(-std=c++11)
+//add_executable(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/ros_pcl_sub_pub.cpp)
+//target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+//realsense-ros
+//. devel/setup.bash
+//roslaunch realsense2_camera rs_rgbd.launch filters:=pointcloud depth_width:=1280 depth_height:=720 color_width:=1280 color_height:=720
+
+//catkin_make
+//. devel/setup.bash
+//rosrun ros_pcl_sub_pub ros_pcl_sub_pub
+
+
+//#https://github.com/methylDragon/pcl-ros-tutorial/blob/master/Starter%20Code/minimal_pcl/src/minimal_pub_sub.cpp
 // ========================//
 //   Save Realsense Data
 // ========================//
