@@ -4,5 +4,6 @@
 *devel
 *.pcd
 *.png
+*.catkin_workspace
 
 CATKIN_IGNORE
