@@ -3,5 +3,6 @@
 *build
 *devel
 *.pcd
+*.png
 
 CATKIN_IGNORE
