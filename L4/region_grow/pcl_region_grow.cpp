@@ -3,6 +3,8 @@
 // make
 // ./region_grow
 
+//https://cloud.tencent.com/developer/article/1475904
+
 #include<iostream>
 #include<pcl/io/pcd_io.h>
 #include<pcl/filters/voxel_grid.h>
@@ -78,7 +80,7 @@ int main()
 
     std::vector <pcl::PointIndices> clusters;
     reg.extract (clusters);
-    reg.
+   
     
     std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
     std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
