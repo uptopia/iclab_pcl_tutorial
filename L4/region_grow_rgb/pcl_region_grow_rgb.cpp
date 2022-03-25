@@ -2,6 +2,7 @@
 // cmake ..
 // make
 // ./region_grow
+//https://stackoverflow.com/questions/16572666/using-clustered-indexes-from-point-cloud-in-rgb-image
 
 #include<iostream>
 #include<pcl/io/pcd_io.h>
