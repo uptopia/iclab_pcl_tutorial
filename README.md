@@ -2,6 +2,9 @@
 
 ![Ubuntu18.04 PCL1.8.1](https://img.shields.io/badge/Ububtu_18.04-PCL_1.8.1-green.svg)
 
+![Ubuntu20.04 PCL1.10.0](https://img.shields.io/badge/Ububtu_20.04-PCL_1.10.0-green.svg)
+
+
 ## Dependencies
 3D Cameras
 * Install [Realsense ROS](https://github.com/IntelRealSense/realsense-ros)
