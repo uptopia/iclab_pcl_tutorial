@@ -120,6 +120,7 @@ void unorganized_cloud_cb(const sensor_msgs::PointCloud2ConstPtr& unorganized_cl
 
 int main(int argc, char** argv)
 {
+    std::cout << "PCL_VERSION_PRETTY: " << PCL_VERSION_PRETTY << std::endl;
     ros::init(argc, argv, "save_realsense_data");
 
     ros::NodeHandle nh;

@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 project(ros_pcl_sub_pub)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+#add_compile_options(-std=c++11) #ROS Kinetic
+add_compile_options(-std=c++14) #ROS Noetic
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
