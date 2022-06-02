@@ -43,7 +43,11 @@ make
 
 **pcl_downsample**
 
+**pcl_upsample**
+
 **pcl_filters**
+
+**pcl_smooth**
 
 ## L3: 點雲特徵點提取及匹配
 
