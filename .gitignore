@@ -2,7 +2,6 @@
 
 *build
 *devel
-*.pcd
 *.bag
 *.catkin_workspace
 
