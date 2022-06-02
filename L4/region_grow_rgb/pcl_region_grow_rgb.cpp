@@ -20,7 +20,7 @@ using namespace std;
 
 int main()
 {
-    std::string file_path = "/home/upup/iclab_pcl_tutorial/L4/sample_scene/scene_organized_cloud.pcd";  
+    std::string file_path = "/home/upup/iclab_pcl_tutorial/example_data/scene_pc_organized_cloud.pcd";  
     
     pcl::PointCloud<PointTRGB>::Ptr scene_ori(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr scene(new pcl::PointCloud<PointTRGB>);
