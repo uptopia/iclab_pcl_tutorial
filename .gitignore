@@ -3,7 +3,7 @@
 *build
 *devel
 *.pcd
-*.png
+*.bag
 *.catkin_workspace
 
 CATKIN_IGNORE
