@@ -27,7 +27,7 @@ using namespace std;
 
 int main()
 {
-    std::string file_path = "/home/upup/iclab_pcl_tutorial/example_data/scene_pc_organized_cloud.pcd";  
+    std::string file_path = "../../../example_data/scene_pc_organized_cloud.pcd";  
     
     pcl::PointCloud<PointTRGB>::Ptr scene_ori(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr scene(new pcl::PointCloud<PointTRGB>);
@@ -43,9 +43,9 @@ int main()
         return -1;
     }   
     
-    //===========//
+    //============//
     // Preprocess
-    //===========//
+    //============//
     pcl::IndicesPtr indices (new std::vector <int>);
     pcl::PassThrough<PointTRGB> pass;
     pass.setInputCloud (scene_ori);
@@ -53,50 +53,69 @@ int main()
     pass.setFilterLimits (0.4, 0.977);
     pass.filter(*scene_ori);// (*indices); //去除不相關的場景
 
-    //(2)removeNaNFromPointCloud
+    //(1)removeNaNFromPointCloud
     scene->is_dense = false;
     std::vector<int> nan_indices;
     pcl::removeNaNFromPointCloud(*scene_ori, *scene_ori, nan_indices);
 
-    //(1) Voxel Grid
+    //(2) Voxel Grid
     float leafsize = 0.005;
     pcl::VoxelGrid<PointTRGB> vg;
     vg.setInputCloud(scene_ori);
     vg.setLeafSize(leafsize, leafsize, leafsize);
     vg.filter(*scene);
 
-    // ================//
+    //==================//
     // Region Grow RGB
-    // ================//
+    //==================//
+    // RegionGrowRGB 和 RegionGrow的兩個差異點：
+    // (1) 使用color，而非normal
+    // (2) 使用merging algorithm來控制over-, under- segmentation
+    // After the segmentation, an attempt for merging clusters with close colors is made. 
+    // Two neighbouring clusters with a small difference between average color are merged together. 
+    // Then the second merging step takes place. 
+    // During this step every single cluster is verified by the number of points that it contains. 
+    // If this number is less than the user-defined value 
+    // than current cluster is merged with the closest neighbouring cluster.
     pcl::search::Search <PointTRGB>::Ptr tree (new pcl::search::KdTree<PointTRGB>);
     pcl::RegionGrowingRGB<PointTRGB> reg;
-    reg.setInputCloud (scene);         // 입력 
-    reg.setSearchMethod (tree);        // 탐색 방법 
-    reg.setDistanceThreshold (10);     // 10 이웃(Neighbor)으로 지정되는 거리 정보 
-    reg.setPointColorThreshold (3);    // 6 동일 Cluter여부를 테스트 하기 위해 사용 (cf. Just as angle threshold is used for testing points normals )
-    reg.setRegionColorThreshold (5);   // 5 동일 Cluter여부를 테스트 하기 위해 사용, 통합(merging)단계에서 사용됨 
-    reg.setMinClusterSize (600);       // 600 최소 포인트수, 지정 값보다 작으면 이웃 포인트와 통합 됨 
+    reg.setInputCloud(scene);
+    reg.setSearchMethod(tree);
+    reg.setDistanceThreshold(10);   //[Clustering]的閾值，判斷是否是鄰近點
+    reg.setPointColorThreshold(3);  //[Clustering]的閾值，判對是否屬於同一群
+    reg.setRegionColorThreshold(5); //[Merging]的閾值
+    reg.setMinClusterSize(600);     //若cluster點數少於設定值，則與其他cluster合併
 
     std::vector <pcl::PointIndices> clusters;
     reg.extract (clusters);
 
-    // std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
-    // std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
-    // std::cout << "These are the indices of the points of the initial" <<
-    //     std::endl << "cloud that belong to the first cluster:" << std::endl;
+    cout << "Total number of clusters: " << clusters.size () << endl;
+    // cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
+    // cout << "These are the indices of the points of the initial "
+    //     << "cloud that belong to the first cluster:" << endl;
     // int counter = 0;
     // while (counter < clusters[0].indices.size ())
     // {
-    //     std::cout << clusters[0].indices[counter] << ", ";
+    //     cout << clusters[0].indices[counter] << ", ";
     //     counter++;
     //     if (counter % 10 == 0)
-    //     std::cout << std::endl;
+    //         cout << endl;
     // }
-    // std::cout << std::endl;
+    // cout << endl;
 
-    // ====================//
+    //==================================//
+    // Visualization RegionGrow Result
+    //==================================//
+    pcl::PointCloud <PointTRGB>::Ptr colored_cloud = reg.getColoredCloud ();
+    pcl::visualization::CloudViewer viewer_region_grow ("Cluster Viewer");
+    viewer_region_grow.showCloud(colored_cloud);
+    while (!viewer_region_grow.wasStopped())
+    {
+    }
+
+    //======================//
     // Extract PointClouds
-    // ====================//
+    //======================//
     pcl::PointCloud<PointTRGB>::Ptr table_bottle(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr table(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr bottle(new pcl::PointCloud<PointTRGB>);
@@ -121,22 +140,22 @@ int main()
     extract.setIndices(inliers);
     extract.filter(*box);
 
-    // ====================================//
+    //=======================================//
     // SAmple Consensus (SAC) Segmentation
-    // ====================================//
+    //=======================================//
     //https://pointclouds.org/documentation/group__sample__consensus.html
     pcl::ModelCoefficients::Ptr table_coeff(new pcl::ModelCoefficients);
     pcl::ModelCoefficients::Ptr bottle_coeff(new pcl::ModelCoefficients);
-    // pcl::ModelCoefficients::Ptr ball_coeff(new pcl::ModelCoefficients);
     pcl::ModelCoefficients::Ptr box_coeff(new pcl::ModelCoefficients);
     pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices);
     pcl::PointIndices::Ptr bottle_inliers(new pcl::PointIndices);
-    // pcl::PointIndices::Ptr ball_inliers(new pcl::PointIndices);
     pcl::PointIndices::Ptr box_inliers(new pcl::PointIndices);
 
-    //table: SACMODEL_PLANE
+    //=======================//
+    // table: SACMODEL_PLANE
+    //=======================//
     pcl::SACSegmentation<PointTRGB> seg;
-    seg.setOptimizeCoefficients(true); //optional
+    seg.setOptimizeCoefficients(true);      //optional
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
     seg.setDistanceThreshold(0.005);
@@ -152,10 +171,12 @@ int main()
     pcl::PointCloud<PointTRGB>::Ptr outliers(new pcl::PointCloud<PointTRGB>);
     extract_plane.filter(*outliers);
 
-
-    //bottle: SACMODEL_CYLINDER
+    //============================//
+    // bottle: SACMODEL_CYLINDER
+    //============================//
     //https://pointclouds.org/documentation/tutorials/cylinder_segmentation.html#cylinder-segmentation
     //https://answers.ros.org/question/173143/segmentation-of-a-pointcloud-to-find-a-specific-object-a-cup-pcl/
+    //https://blog.csdn.net/stanshi/article/details/124773320?spm=1001.2101.3001.6650.2&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-2-124773320-blog-41117053.pc_relevant_multi_platform_whitelistv3&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-2-124773320-blog-41117053.pc_relevant_multi_platform_whitelistv3&utm_relevant_index=3
     pcl::PointCloud<pcl::Normal>::Ptr outlier_normals (new pcl::PointCloud<pcl::Normal>);
     pcl::search::KdTree<PointTRGB>::Ptr kdtree(new pcl::search::KdTree<PointTRGB>);
     pcl::NormalEstimation<PointTRGB, pcl::Normal> ne;
@@ -166,7 +187,6 @@ int main()
     ne.compute(*outlier_normals);
 
     pcl::SACSegmentationFromNormals<PointTRGB, pcl::Normal> seg_nor;
-    // pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
     seg_nor.setOptimizeCoefficients(true); //optional
     seg_nor.setModelType(pcl::SACMODEL_CYLINDER);
     seg_nor.setMethodType (pcl::SAC_RANSAC);
@@ -177,25 +197,36 @@ int main()
     seg_nor.setInputNormals (outlier_normals);
     seg_nor.setInputCloud(outliers);
     seg_nor.segment(*bottle_inliers, *bottle_coeff);
-    std::cerr << "Cylinder coefficients: " << *bottle_coeff<< std::endl;
 
+    cout << "Cylinder coeff: " //<< *bottle_coeff << endl;
+        << "\n\tPoint_on_axis.x  = " << bottle_coeff->values[0]
+        << "\n\tPoint_on_axis.y  = " << bottle_coeff->values[1]
+        << "\n\tPoint_on_axis.z  = " << bottle_coeff->values[2]
+        << "\n\tAxis_direction.x = " << bottle_coeff->values[3]
+        << "\n\tAxis_direction.y = " << bottle_coeff->values[4]
+        << "\n\tAxis_direction.z = " << bottle_coeff->values[5]
+        << "\n\tCylinder Radius  = " << bottle_coeff->values[6]
+        << endl;
 
     pcl::ExtractIndices<PointTRGB> extract_bottle;
     extract_bottle.setInputCloud(outliers);
     extract_bottle.setNegative (false);
     extract_bottle.setIndices(bottle_inliers);
     extract_bottle.filter(*bottle);
-    cout<<"bottle_inliers:"<<bottle_inliers->indices.size() <<endl;
+    cout << "bottle_inliers:" << bottle_inliers->indices.size() << endl;
+
     // extract_bottle.setNegative(true);
     // pcl::PointCloud<PointTRGB>::Ptr outliers(new pcl::PointCloud<PointTRGB>);
     // extract_bottle.filter(*outliers);
 
-    //ball: SACMODEL_SPHERE
+    //=======================//
+    // ball: SACMODEL_SPHERE
+    //=======================//
     //https://blog.csdn.net/weixin_46098577/article/details/121977744
     pcl::SampleConsensusModelSphere<PointTRGB>::Ptr model_sphere(new pcl::SampleConsensusModelSphere<PointTRGB>(ball));	//选择拟合点云与几何模型
-	pcl::RandomSampleConsensus<PointTRGB> ransac(model_sphere);	//创建随机采样一致性对象
-	ransac.setDistanceThreshold(0.005);	//设置距离阈值，与球面距离小于0.01的点作为内点
-	ransac.computeModel();				//执行模型估计
+	pcl::RandomSampleConsensus<PointTRGB> ransac(model_sphere);
+	ransac.setDistanceThreshold(0.005);	
+	ransac.computeModel();				
 
     pcl::PointCloud<PointTRGB>::Ptr ball_clean(new pcl::PointCloud<PointTRGB>);
     std::vector<int> ball_inliers;
@@ -204,14 +235,14 @@ int main()
 
     Eigen::VectorXf ball_coeff;
 	ransac.getModelCoefficients(ball_coeff);
-	cout << "->球面方程为：\n"
+	cout << "球面方程式："
 		<< "(x - " << ball_coeff[0]
-		<< ") ^ 2 + (y - " << ball_coeff[1]
-		<< ") ^ 2 + (z - " << ball_coeff[2]
+		<< ")^2 + (y - " << ball_coeff[1]
+		<< ")^2 + (z - " << ball_coeff[2]
 		<< ")^2 = " << ball_coeff[3]
-		<< " ^2"
-		<< endl;
+		<< "^2\n";
 
+    // pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
     // seg.setOptimizeCoefficients(true); //optional
     // seg.setModelType(pcl::SACMODEL_SPHERE);
     // seg.setMethodType(pcl::SAC_RANSAC);
@@ -228,31 +259,22 @@ int main()
     // // pcl::PointCloud<PointTRGB>::Ptr outliers(new pcl::PointCloud<PointTRGB>);
     // // extract_plane.filter(*outliers);
 
-    //box
-
-    // ===============//
+    //===============//
     // Visualization
-    // ===============//
-    // pcl::PointCloud <PointTRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-    // pcl::visualization::CloudViewer viewer ("Cluster viewer");
-    // viewer.showCloud(colored_cloud);
-    // while (!viewer.wasStopped ())
-    // {
-    // }
-
+    //===============//
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("RegionGrow"));
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud1_color(table, 255, 0, 0); // green
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud2_color(ball, 0, 255, 0); // green
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud3_color(box, 0, 255, 255); // green
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud4_color(outliers, 255, 255, 255); // green
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud5_color(bottle, 255, 0, 255); // green
+    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud1_color(table, 255, 0, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud2_color(ball, 0, 255, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud3_color(box, 0, 255, 255);
+    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud4_color(outliers, 255, 255, 255);
+    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud5_color(bottle, 255, 0, 255);
 
-    viewer->addPointCloud<PointTRGB>(bottle, cloud5_color, "cloud5");//添加點雲
-    // viewer->addPointCloud<PointTRGB>(outliers, cloud4_color, "cloud4");//添加點雲
-    viewer->addPointCloud<PointTRGB>(table, cloud1_color, "cloud1");//添加點雲
-    // viewer->addPointCloud<PointTRGB>(ball, cloud2_color, "cloud2");//添加點雲
-    viewer->addPointCloud<PointTRGB>(ball_clean, cloud2_color, "cloud2");//添加點雲
-    // viewer->addPointCloud<PointTRGB>(box, cloud3_color, "cloud3");//添加點雲
+    viewer->addPointCloud<PointTRGB>(bottle, cloud5_color, "cloud5");
+    // viewer->addPointCloud<PointTRGB>(outliers, cloud4_color, "cloud4");
+    viewer->addPointCloud<PointTRGB>(table, cloud1_color, "cloud1");
+    // viewer->addPointCloud<PointTRGB>(ball, cloud2_color, "cloud2");
+    viewer->addPointCloud<PointTRGB>(ball_clean, cloud2_color, "cloud2");
+    // viewer->addPointCloud<PointTRGB>(box, cloud3_color, "cloud3");
 
     // pcl::visualization::createCylinder(*bottle_coeff,30);
 

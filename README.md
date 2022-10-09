@@ -1,12 +1,12 @@
 # I.C.Lab PCL Tutorial
 
-![Ubuntu18.04 PCL1.8.1](https://img.shields.io/badge/Ububtu_18.04-PCL_1.8.1-green.svg)
+![Ubuntu18.04 PCL1.8.1](https://img.shields.io/badge/Ububtu_18.04-PCL_1.8.1-green.svg)  
 ![Ubuntu20.04 PCL1.10.0](https://img.shields.io/badge/Ububtu_20.04-PCL_1.10.0-green.svg)
 
 ## Software environment
 * Ubuntu 18.04
 * ROS Melodic (PCL 1.8.1)
-* [CloudCompare](https://www.danielgm.net/cc/)
+* [CloudCompare](https://www.danielgm.net/cc/) `sudo snap install cloudcompare`
 
 ## RGB and PointCloud Data
 Example Data
@@ -23,12 +23,12 @@ or
 [Using PCL in your own project](https://pcl.readthedocs.io/projects/tutorials/en/latest/using_pcl_pcl_config.html#using-pcl-pcl-config)
 
 ```
-cd ~/iclab_pcl_tutorial/L1/project
+cd ~/iclab_pcl_tutorial/L1/<project_name>
 mkdir build
 cd build
 cmake ..
 make
-./project
+./<project_name>
 ```
 
 ## L1: 3D感測技術及點雲庫(PCL)介紹

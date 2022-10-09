@@ -47,7 +47,7 @@ int main()
     //===========//
     // Parameters
     //===========//
-    std::string file_load_path = "/home/upup/iclab_pcl_tutorial/example_data/scene_D435i.pcd";
+    std::string file_load_path = "../../../example_data/scene_D435i.pcd";
 
     pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
     pcl::PointCloud<PointT>::Ptr cloud_dn(new pcl::PointCloud<PointT>);
