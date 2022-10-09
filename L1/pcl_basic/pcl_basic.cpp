@@ -14,10 +14,10 @@ int main()
     //===========//
     // Parameters
     //===========//
-    std::string file_load_path_cloud1 = "/home/upup/iclab_pcl_tutorial/example_data/scene_D405_cut.pcd";
-    std::string file_load_path_cloud2 = "/home/upup/iclab_pcl_tutorial/example_data/scene_D435i.pcd";
-    std::string file_save_path = "/home/upup/iclab_pcl_tutorial/example_data/cloud_binary.pcd";
-    std::string file_save_pathASCII = "/home/upup/iclab_pcl_tutorial/example_data/cloud_ascii.pcd";
+    std::string file_load_path_cloud1 = "../../../example_data/scene_D405_cut.pcd";
+    std::string file_load_path_cloud2 = "../../../example_data/scene_D435i.pcd";
+    std::string file_save_path = "../../../example_data/cloud_binary.pcd";
+    std::string file_save_pathASCII = "../../../example_data/cloud_ascii.pcd";
      
     pcl::PointCloud<PointT>::Ptr cloud1(new pcl::PointCloud<PointT>);
     pcl::PointCloud<PointT>::Ptr cloud2(new pcl::PointCloud<PointT>);
@@ -48,13 +48,17 @@ int main()
     bool is_dense = cloud1->is_dense;    //True: No NaN/Inf, all points are finit
     Eigen::Vector4f ori_translation = cloud1->sensor_origin_;
     Eigen::Quaternionf ori_orientation = cloud1->sensor_orientation_;
+    cout << "width, height, size: " << width << ", " << height << ", " << size << endl
+         << "is_dense: " << is_dense << endl
+         << "ori_translation (x, y, z): " << ori_translation[0] <<", " << ori_translation[1] <<", " << ori_translation[2] << endl
+         << "ori_orientation (x, y, z, w): " << ori_orientation.x() << ", " << ori_orientation.y() << ", "<< ori_orientation.z() << ", "<< ori_orientation.w() << endl;
 
     //===================//
     // remove NaN
     //===================//
     //https://blog.csdn.net/weixin_42657460/article/details/118942759 //important!!!!
     //https://blog.csdn.net/qq_36501182/article/details/79170438
-    //(1)pcl_isfinite
+    //(1) pcl_isfinite
     for(int i =0; i<cloud1->size(); i++)
     {
         PointT pt = cloud1->points[i];
@@ -64,7 +68,7 @@ int main()
             continue;
         }
     }
-    //(2)removeNaNFromPointCloud
+    //(2) removeNaNFromPointCloud
     cloud1->is_dense = false;
     std::vector<int> nan_indices;
     pcl::removeNaNFromPointCloud(*cloud1, *cloud1, nan_indices);
