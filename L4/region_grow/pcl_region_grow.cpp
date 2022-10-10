@@ -9,6 +9,7 @@
 #include<pcl/io/pcd_io.h>
 #include<pcl/filters/voxel_grid.h>
 #include<pcl/filters/passthrough.h>
+#include<pcl/filters/extract_indices.h>
 #include<pcl/search/kdtree.h>
 #include<pcl/features/normal_3d.h>
 #include<pcl/segmentation/region_growing.h>
@@ -17,6 +18,11 @@
 typedef pcl::PointXYZ PointT;
 
 using namespace std;
+
+bool compareClusterSize(pcl::PointIndices& c1, pcl::PointIndices& c2)
+{
+    return c1.indices.size() > c2.indices.size();
+}
 
 int main()
 {
@@ -58,7 +64,9 @@ int main()
     vg.setLeafSize(leafsize, leafsize, leafsize);
     vg.filter(*scene);
 
-
+    //====================//
+    // Normal Estimation
+    //====================//
     pcl::search::Search<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud <pcl::Normal>);
     pcl::NormalEstimation<PointT, pcl::Normal> normal_estimator;
@@ -67,6 +75,9 @@ int main()
     normal_estimator.setKSearch(50);
     normal_estimator.compute(*normals);
 
+    //=================//
+    // Region Growing
+    //=================//
     pcl::RegionGrowing<PointT, pcl::Normal> reg;
     reg.setMinClusterSize (50);
     reg.setMaxClusterSize (300000); //限定每個分割的點數 有桌子所以要調大
@@ -80,38 +91,56 @@ int main()
 
     std::vector <pcl::PointIndices> clusters;
     reg.extract (clusters);
-   
-    
-    std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
-    std::cout << "First cluster has " << clusters[0].indices.size () << " points." << std::endl;
-    std::cout << "These are the indices of the points of the initial" <<
-        std::endl << "cloud that belong to the first cluster:" << std::endl;
-    int counter = 0;
-    while (counter < clusters[0].indices.size ())
+
+    //將cluster由大到小排序
+    sort(clusters.begin(), clusters.end(), compareClusterSize);
+
+    for(int n = 0; n<clusters.size(); n++)
     {
-        std::cout << clusters[0].indices[counter] << ", ";
-        counter++;
-        if (counter % 10 == 0)
-        std::cout << std::endl;
+        cout << "# "<< n <<": " << clusters[n].indices.size() << endl;
     }
-    std::cout << std::endl;
-
-
-
 
     //===============//
     // Visualization
     //===============//
-    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("RegionGrow"));
-    // viewer->addPointCloud<PointT>(scene,"scene");
-    // viewer->spin();
-
     pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-    pcl::visualization::CloudViewer viewer ("Cluster viewer");
-    viewer.showCloud(colored_cloud);
-    while (!viewer.wasStopped ())
+    pcl::visualization::CloudViewer cluster_viewer ("Cluster viewer");
+    cluster_viewer.showCloud(colored_cloud);
+    while (!cluster_viewer.wasStopped ())
     {
     }
+
+    cout << "Total number of clusters is equal to " << clusters.size () << endl;
+    // cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
+    // cout << "These are the indices of the points of the initial" <<
+    //     endl << "cloud that belong to the first cluster:" << endl;
+    // int counter = 0;
+    // while (counter < clusters[0].indices.size ())
+    // {
+    //     cout << clusters[0].indices[counter] << ", ";
+    //     counter++;
+    //     if (counter % 10 == 0)
+    //         cout << endl;
+    // }
+    // cout << endl;
+
+    pcl::PointCloud<PointT>::Ptr cluster_cloud(new pcl::PointCloud<PointT>);
+
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+    inliers->indices = clusters[0].indices;
+
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(scene);
+    extract.setNegative(false);
+    extract.setIndices(inliers);
+    extract.filter(*cluster_cloud);
+
+    //===============//
+    // Visualization
+    //===============//
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("RegionGrow"));
+    viewer->addPointCloud<PointT>(cluster_cloud,"cluster_cloud");
+    viewer->spin();
 
     return 0;
 }
