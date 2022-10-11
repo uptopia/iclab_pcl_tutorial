@@ -25,6 +25,14 @@ typedef pcl::PointXYZRGB PointTRGB;
 
 using namespace std;
 
+//===================//
+// Sort Cluster Size
+//===================//
+bool compareClusterSize(pcl::PointIndices& c1, pcl::PointIndices& c2)
+{
+    return c1.indices.size() > c2.indices.size();
+}
+
 int main()
 {
     std::string file_path = "../../../example_data/scene_pc_organized_cloud.pcd";  
@@ -65,9 +73,9 @@ int main()
     vg.setLeafSize(leafsize, leafsize, leafsize);
     vg.filter(*scene);
 
-    //==================//
-    // Region Grow RGB
-    //==================//
+    //====================//
+    // Region Growing RGB
+    //====================//
     // RegionGrowRGB 和 RegionGrow的兩個差異點：
     // (1) 使用color，而非normal
     // (2) 使用merging algorithm來控制over-, under- segmentation
@@ -89,6 +97,17 @@ int main()
     std::vector <pcl::PointIndices> clusters;
     reg.extract (clusters);
 
+    //===================//
+    // Sort Cluster Size
+    // 將cluster由大到小排序
+    //===================//
+    sort(clusters.begin(), clusters.end(), compareClusterSize);
+
+    for(int n = 0; n<clusters.size(); n++)
+    {
+        cout << "# "<< n <<": " << clusters[n].indices.size() << endl;
+    }
+
     cout << "Total number of clusters: " << clusters.size () << endl;
     // cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
     // cout << "These are the indices of the points of the initial "
@@ -104,7 +123,7 @@ int main()
     // cout << endl;
 
     //==================================//
-    // Visualization RegionGrow Result
+    // Visualization RegionGrowRGB Result
     //==================================//
     pcl::PointCloud <PointTRGB>::Ptr colored_cloud = reg.getColoredCloud ();
     pcl::visualization::CloudViewer viewer_region_grow ("Cluster Viewer");
@@ -128,15 +147,15 @@ int main()
     extract.setInputCloud(scene);
     extract.setNegative (false);
 
-    inliers->indices = clusters[3].indices;
+    inliers->indices = clusters[0].indices;//3
     extract.setIndices(inliers);
     extract.filter(*table_bottle);
 
-    inliers->indices = clusters[1].indices;
+    inliers->indices = clusters[2].indices;//1
     extract.setIndices(inliers);
     extract.filter(*ball);
 
-    inliers->indices = clusters[2].indices;
+    inliers->indices = clusters[1].indices;//2
     extract.setIndices(inliers);
     extract.filter(*box);
 

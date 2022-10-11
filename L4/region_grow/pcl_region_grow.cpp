@@ -15,10 +15,14 @@
 #include<pcl/segmentation/region_growing.h>
 #include<pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/cloud_viewer.h>
+
 typedef pcl::PointXYZ PointT;
 
 using namespace std;
 
+//===================//
+// Sort Cluster Size
+//===================//
 bool compareClusterSize(pcl::PointIndices& c1, pcl::PointIndices& c2)
 {
     return c1.indices.size() > c2.indices.size();
@@ -52,12 +56,12 @@ int main()
     pass.setFilterLimits (0.4, 0.977);
     pass.filter(*scene_ori);// (*indices); //去除不相關的場景
 
-    //(2)removeNaNFromPointCloud
+    //(1)removeNaNFromPointCloud
     scene->is_dense = false;
     std::vector<int> nan_indices;
     pcl::removeNaNFromPointCloud(*scene_ori, *scene_ori, nan_indices);
 
-    //(1) Voxel Grid
+    //(2) Voxel Grid
     float leafsize = 0.005;
     pcl::VoxelGrid<PointT> vg;
     vg.setInputCloud(scene_ori);
@@ -92,22 +96,15 @@ int main()
     std::vector <pcl::PointIndices> clusters;
     reg.extract (clusters);
 
-    //將cluster由大到小排序
+    //===================//
+    // Sort Cluster Size
+    // 將cluster由大到小排序
+    //===================//
     sort(clusters.begin(), clusters.end(), compareClusterSize);
 
     for(int n = 0; n<clusters.size(); n++)
     {
         cout << "# "<< n <<": " << clusters[n].indices.size() << endl;
-    }
-
-    //===============//
-    // Visualization
-    //===============//
-    pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-    pcl::visualization::CloudViewer cluster_viewer ("Cluster viewer");
-    cluster_viewer.showCloud(colored_cloud);
-    while (!cluster_viewer.wasStopped ())
-    {
     }
 
     cout << "Total number of clusters is equal to " << clusters.size () << endl;
@@ -124,23 +121,39 @@ int main()
     // }
     // cout << endl;
 
-    pcl::PointCloud<PointT>::Ptr cluster_cloud(new pcl::PointCloud<PointT>);
-
-    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-    inliers->indices = clusters[0].indices;
-
-    pcl::ExtractIndices<PointT> extract;
-    extract.setInputCloud(scene);
-    extract.setNegative(false);
-    extract.setIndices(inliers);
-    extract.filter(*cluster_cloud);
+   //==================================//
+    // Visualization RegionGrow Result
+    //==================================//
+    pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
+    pcl::visualization::CloudViewer cluster_viewer ("Cluster viewer");
+    cluster_viewer.showCloud(colored_cloud);
+    while (!cluster_viewer.wasStopped ())
+    {
+    }
 
     //===============//
     // Visualization
     //===============//
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("RegionGrow"));
-    viewer->addPointCloud<PointT>(cluster_cloud,"cluster_cloud");
-    viewer->spin();
+    pcl::PointCloud<PointT>::Ptr cluster_cloud(new pcl::PointCloud<PointT>);
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(scene);
+    extract.setNegative(false);
+    
+    for(int n=0; n<clusters.size(); n++)
+    {
+        inliers->indices = clusters[n].indices;
+    
+        cluster_cloud->clear();
+        extract.setIndices(inliers);
+        extract.filter(*cluster_cloud);
+
+        viewer->removeAllPointClouds();
+        viewer->addPointCloud<PointT>(cluster_cloud,"cluster_cloud");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cluster_cloud");
+        viewer->spin();
+    }
 
     return 0;
 }
