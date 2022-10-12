@@ -1,7 +1,11 @@
 // CMakeLists.txt
 // cmake ..
+// 確認 PCL_INCLUDE_DIRS中使用的vtk
+// 將CMakeLists中的 set(VTK_DIR "/usr/include;/usr/include/vtk-7.1")
+// 更改為電腦vtk路徑
+
 // make
-// ./region_grow
+// ./sac_cylinder
 
 #include <iostream>
 #include <pcl/io/pcd_io.h>
@@ -23,36 +27,22 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/visualization/common/shapes.h>
 
-
-// #include "vtkAutoInit.h" 
-// VTK_MODULE_INIT(vtkRenderingOpenGL2);
-// VTK_MODULE_INIT(vtkInteractionStyle);
-// VTK_MODULE_INIT(vtkRenderingFreeType);
-
+//VTK
+#include <vtkNew.h>
+#include <vtkNamedColors.h>
 #include <vtkSmartPointer.h>
-// #include <vtkPolyData.h>
-// #include <vtkActor.h>
-
-// #include <vtkLineSource.h>
-#include <vtkTubeFilter.h>
-// #include <vtkCylinderSource.h>
-
-// #include <QVTKOpenGLNativeWidget.h>
-// #include <vtkGenericOpenGLRenderWindow.h>
 
 #include <vtkActor.h>
+
+#include <vtkTubeFilter.h>
 #include <vtkCylinderSource.h>
+
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
+
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
-
-#include <vtkNew.h>
-#include <vtkNamedColors.h>
-
-//https://vtk.org/Wiki/VTK/Tutorials/CMakeListsFile
-
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointXYZRGB PointTRGB;
@@ -143,28 +133,6 @@ int main()
     }
 
     cout << "Total number of clusters: " << clusters.size () << endl;
-    // cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
-    // cout << "These are the indices of the points of the initial "
-    //     << "cloud that belong to the first cluster:" << endl;
-    // int counter = 0;
-    // while (counter < clusters[0].indices.size ())
-    // {
-    //     cout << clusters[0].indices[counter] << ", ";
-    //     counter++;
-    //     if (counter % 10 == 0)
-    //         cout << endl;
-    // }
-    // cout << endl;
-
-    //==================================//
-    // Visualization RegionGrowRGB Result
-    //==================================//
-    pcl::PointCloud <PointTRGB>::Ptr colored_cloud = reg.getColoredCloud ();
-    pcl::visualization::CloudViewer viewer_region_grow ("Cluster Viewer");
-    viewer_region_grow.showCloud(colored_cloud);
-    while (!viewer_region_grow.wasStopped())
-    {
-    }
 
     //======================//
     // Extract PointClouds
@@ -172,7 +140,6 @@ int main()
     pcl::PointCloud<PointTRGB>::Ptr table_bottle(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr table(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr bottle(new pcl::PointCloud<PointTRGB>);
-    pcl::PointCloud<PointTRGB>::Ptr ball(new pcl::PointCloud<PointTRGB>);
     pcl::PointCloud<PointTRGB>::Ptr box(new pcl::PointCloud<PointTRGB>);
 
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
@@ -188,10 +155,6 @@ int main()
     inliers->indices = clusters[1].indices;
     extract.setIndices(inliers);
     extract.filter(*box);
-
-    inliers->indices = clusters[2].indices;
-    extract.setIndices(inliers);
-    extract.filter(*ball);
 
     //=======================================//
     // SAmple Consensus (SAC) Segmentation
@@ -281,7 +244,10 @@ int main()
     // extract_bottle.setNegative(true);
     // extract_bottle.filter(*outliers);
 
-    // 圓柱體點都投影到軸線上
+    //========================//
+    // 圓柱體的點都投影到軸線上
+    //========================//
+    //https://www.csdn.net/tags/NtjaYgxsNjY4NTYtYmxvZwO0O0OO0O0O.html
     pcl::PointCloud<PointT>::Ptr proj_axis_cloud(new pcl::PointCloud<PointT>);
     PointT axis_pt = PointT(bottle_coeff->values[0], bottle_coeff->values[1], bottle_coeff->values[2]);
     PointT axis_vect = PointT(bottle_coeff->values[3], bottle_coeff->values[4], bottle_coeff->values[5]);
@@ -295,7 +261,7 @@ int main()
         proj_axis_cloud->push_back(proj_pt);
     }
 
-    pcl::visualization::PCLVisualizer::Ptr viewerCylinder(new pcl::visualization::PCLVisualizer("Cylinder"));
+    pcl::visualization::PCLVisualizer::Ptr viewerCylinder(new pcl::visualization::PCLVisualizer("Cylinder proj to Axis"));
     pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud41_color(proj_axis_cloud, 255, 255, 255);
     pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud51_color(bottle, 255, 0, 255);
 
@@ -303,6 +269,9 @@ int main()
     viewerCylinder->addPointCloud<PointT>(proj_axis_cloud, cloud41_color, "proj_axis_cloud");
     viewerCylinder->spin();
 
+    //===========================//
+    // 求圓柱體的高(找最大點、最小點)
+    //===========================//
     // 旋轉軸線貼合到X軸:先繞z軸轉，再繞y軸轉
     pcl::PointCloud<PointT>::Ptr proj_axis_cloud_rotate(new pcl::PointCloud<PointT>);
 
@@ -319,15 +288,100 @@ int main()
     auto&& min_x_pt = std::min_element(proj_axis_cloud_rotate->begin(), proj_axis_cloud_rotate->end(), [](const PointT& a, const PointT&b)
        {return a.x < b.x;}).operator->();
 
-    auto&& center_pt = PointT((max_x_pt->x + min_x_pt->x)/2.0, (max_x_pt->y + min_x_pt->y)/2.0, (max_x_pt->z + min_x_pt->z)/2.0);
-    cout << max_x_pt->x <<", "<< max_x_pt->y <<", "<< max_x_pt->z << ", " 
-         << min_x_pt->x <<", "<< min_x_pt->y <<", "<< min_x_pt->z << ", " 
+    // 將x最大值、最小值的點旋轉回原始位置
+    pcl::PointCloud<PointT>::Ptr pt_rotate_back(new pcl::PointCloud<PointT>);
+    pt_rotate_back->push_back(*max_x_pt);
+    pt_rotate_back->push_back(*min_x_pt);
+    pcl::transformPointCloud(*pt_rotate_back, *pt_rotate_back, Eigen::Affine3f(Eigen::AngleAxisf(-angle_y, Eigen::Vector3f::UnitY())));
+    pcl::transformPointCloud(*pt_rotate_back, *pt_rotate_back, Eigen::Affine3f(Eigen::AngleAxisf(-angle_z, Eigen::Vector3f::UnitZ())));
+
+    PointT start_pt = pt_rotate_back->at(0);
+    PointT end_pt = pt_rotate_back->at(1);
+    auto&& center_pt = PointT((start_pt.x + end_pt.x)/2.0, (start_pt.y + end_pt.y)/2.0, (start_pt.z + end_pt.z)/2.0);
+    cout << start_pt.x <<", "<< start_pt.y <<", "<< start_pt.z << ", " 
+         << end_pt.x   <<", "<< end_pt.y   <<", "<< end_pt.z   << ", " 
          << center_pt.x <<", "<< center_pt.y <<", "<< center_pt.z << endl;
 
-    // //========================//
-    // // Visualization Cylinder
-    // //========================//
+   
+    //========================//
+    // Visualization Cylinder
+    //========================//
     vtkNew<vtkNamedColors> colors;
+
+    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+    vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+    
+    renderWindow->SetWindowName("Cylinder");
+    renderWindow->AddRenderer(renderer);
+    
+    //=============== Cylinder Point Cloud ================//
+    vtkSmartPointer<vtkPoints> vtk_pts = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> vtk_vertices = vtkSmartPointer<vtkCellArray>::New();
+    for(int n = 0; n<bottle->size(); n++)
+    {
+        vtkIdType pid[1];
+        pid[0] = vtk_pts->InsertNextPoint(bottle->at(n).x, bottle->at(n).y, bottle->at(n).z);
+        vtk_vertices->InsertNextCell(1, pid);
+    }
+
+    vtkSmartPointer<vtkPolyData> polydata_cloud = vtkSmartPointer<vtkPolyData>::New();
+    polydata_cloud->SetPoints(vtk_pts);
+    polydata_cloud->SetVerts(vtk_vertices);
+
+    vtkSmartPointer<vtkPolyDataMapper> mapper_cloud = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper_cloud->SetInputData(polydata_cloud);
+
+    vtkSmartPointer<vtkActor> actor_cloud = vtkSmartPointer<vtkActor>::New();
+    actor_cloud->SetMapper(mapper_cloud);
+    actor_cloud->GetProperty()->SetColor(0.0, 1.0, 0.0);
+    actor_cloud->GetProperty()->SetPointSize(3);
+
+
+    //=============== Cylinder Model ================//
+    vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
+    lineSource->SetPoint1(start_pt.x, start_pt.y, start_pt.z);
+    lineSource->SetPoint2(end_pt.x, end_pt.y, end_pt.z);
+
+    vtkSmartPointer<vtkTubeFilter> tubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
+    tubeFilter->SetInputConnection(lineSource->GetOutputPort());
+    tubeFilter->SetRadius(bottle_coeff->values[6]);
+    tubeFilter->SetNumberOfSides(20);
+    tubeFilter->CappingOn();
+    tubeFilter->Update();
+
+    vtkSmartPointer<vtkPolyData> polydata = tubeFilter->GetOutput();
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputData(polydata);
+
+    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(255, 0, 0); //GBR
+    actor->GetProperty()->SetEdgeVisibility(1);
+    actor->GetProperty()->SetEdgeColor(0.9, 0.9, 0.4);
+    // actor->GetProperty()->SetLineWidth(6);
+    // actor->GetProperty()->SetPointSize(12);
+    // actor->GetProperty()->SetRenderLinesAsTubes(1);
+    // actor->GetProperty()->SetRenderPointsAsSpheres(1);
+    // // actor->GetProperty()->SetVertexVisibility(1);
+    // // actor->GetProperty()->SetVertexColor(0.5,1.0,0.8);
+
+    // Add actor to the scene
+    renderer->AddActor(actor);
+    renderer->AddActor(actor_cloud);
+    renderer->SetBackground(colors->GetColor3d("Black").GetData()); //DarkGreen
+
+    // Render and Interact
+    vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
+    renderWindowInteractor->SetRenderWindow(renderWindow);
+
+    renderWindow->Render();
+    renderWindowInteractor->Start();
+
+    // //================================//
+    // // Visualization Cylinder Example
+    // //================================//
+    // // 顯示自行創件的圓柱體
+    // vtkNew<vtkNamedColors> colors;
 
     // // Create a sphere
     // vtkNew<vtkCylinderSource> cylinderSource;
@@ -360,180 +414,6 @@ int main()
     // // Render and Interact
     // renderWindow->Render();
     // renderWindowInteractor->Start();
-
-   
-    //========================//
-    // Visualization Cylinder
-    //========================//
-    vtkSmartPointer<vtkPoints> vtk_pts = vtkSmartPointer<vtkPoints>::New();
-    vtkSmartPointer<vtkCellArray> vtk_vertices = vtkSmartPointer<vtkCellArray>::New();
-    for(int n = 0; n<bottle->size(); n++)
-    {
-        vtkIdType pid[1];
-        pid[0] = vtk_pts->InsertNextPoint(bottle->at(n).x, bottle->at(n).y, bottle->at(n).z);
-        vtk_vertices->InsertNextCell(1, pid);
-    }
-
-    vtkSmartPointer<vtkPolyData> polydata_cloud = vtkSmartPointer<vtkPolyData>::New();
-    polydata_cloud->SetPoints(vtk_pts);
-    polydata_cloud->SetVerts(vtk_vertices);
-
-    vtkSmartPointer<vtkPolyDataMapper> mapper_cloud = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper_cloud->SetInputData(polydata_cloud);
-
-    vtkSmartPointer<vtkActor> actor_cloud = vtkSmartPointer<vtkActor>::New();
-    actor_cloud->SetMapper(mapper_cloud);
-    actor_cloud->GetProperty()->SetColor(0.0, 1.0, 0.0);
-    actor_cloud->GetProperty()->SetPointSize(1);
-
-    
-
-    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-    vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
-    
-    renderWindow->SetWindowName("Cylinder");
-    renderWindow->AddRenderer(renderer);
-    // pcl::visualization::PCLVisualizer vv_cylinder(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
-    // vv_cylinder->addPointCloud(bottle);
-
-    vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
-    lineSource->SetPoint1(max_x_pt->x, max_x_pt->y, max_x_pt->z);
-    lineSource->SetPoint2(min_x_pt->x, min_x_pt->y, min_x_pt->z);
-
-    vtkSmartPointer<vtkTubeFilter> tubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
-    tubeFilter->SetInputConnection(lineSource->GetOutputPort());
-    tubeFilter->SetRadius(bottle_coeff->values[6]);
-    tubeFilter->SetNumberOfSides(20);
-    tubeFilter->CappingOn();
-    tubeFilter->Update();
-
-    vtkSmartPointer<vtkPolyData> polydata = tubeFilter->GetOutput();
-    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputData(polydata);
-
-    // Add actor to the scene
-    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
-    actor->SetMapper(mapper);
-    actor->GetProperty()->SetColor(255, 0, 0); //GBR
-    actor->GetProperty()->SetEdgeVisibility(1);
-    actor->GetProperty()->SetEdgeColor(0.9, 0.9, 0.4);
-    actor->GetProperty()->SetLineWidth(6);
-    actor->GetProperty()->SetPointSize(12);
-    actor->GetProperty()->SetRenderLinesAsTubes(1);
-    actor->GetProperty()->SetRenderPointsAsSpheres(1);
-    // actor->GetProperty()->SetVertexVisibility(1);
-    // actor->GetProperty()->SetVertexColor(0.5,1.0,0.8);
-    renderer->AddActor(actor);
-    renderer->AddActor(actor_cloud);
-    
-    renderer->SetBackground(colors->GetColor3d("Black").GetData()); //DarkGreen
-
-    // Render and Interact
-    vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
-    renderWindowInteractor->SetRenderWindow(renderWindow);
-
-    renderWindow->Render();
-    renderWindowInteractor->Start();
-
-    // vtkWidget->setRenderWindow(vtk_viewer->getRenderWindow());
-    // vtk_viewer->setupInteractor(vtkWidget->interactor(), vtkWidget->renderWindow());
-
-
-    //=======================//
-    // ball: SACMODEL_SPHERE
-    //=======================//
-    //https://blog.csdn.net/weixin_46098577/article/details/121977744
-    pcl::SampleConsensusModelSphere<PointTRGB>::Ptr model_sphere(new pcl::SampleConsensusModelSphere<PointTRGB>(ball));	//选择拟合点云与几何模型
-	pcl::RandomSampleConsensus<PointTRGB> ransac(model_sphere);
-	ransac.setDistanceThreshold(0.005);	
-	ransac.computeModel();				
-
-    pcl::PointCloud<PointTRGB>::Ptr ball_clean(new pcl::PointCloud<PointTRGB>);
-    std::vector<int> ball_inliers;
-    ransac.getInliers(ball_inliers);
-    pcl::copyPointCloud<PointTRGB>(*ball, ball_inliers, *ball_clean);
-
-    Eigen::VectorXf ball_coeff;
-	ransac.getModelCoefficients(ball_coeff);
-	cout << "球面方程式："
-		<< "(x - " << ball_coeff[0]
-		<< ")^2 + (y - " << ball_coeff[1]
-		<< ")^2 + (z - " << ball_coeff[2]
-		<< ")^2 = " << ball_coeff[3]
-		<< "^2\n";
-
-    // pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
-    // seg.setOptimizeCoefficients(true); //optional
-    // seg.setModelType(pcl::SACMODEL_SPHERE);
-    // seg.setMethodType(pcl::SAC_RANSAC);
-    // seg.setDistanceThreshold(0.005);
-    // seg.setInputCloud(ball);
-    // seg.segment(*ball_inliers, *ball_coeff);
-
-    // pcl::ExtractIndices<PointTRGB> extract_ball;
-    // extract_plane.setInputCloud(ball);
-    // extract_plane.setNegative (false);
-    // extract_plane.setIndices(ball_inliers);
-    // extract_plane.filter(*ball);
-
-    // // extract_plane.setNegative(true);
-    // // pcl::PointCloud<PointTRGB>::Ptr outliers(new pcl::PointCloud<PointTRGB>);
-    // // extract_plane.filter(*outliers);
-
-    //===============//
-    // Visualization
-    //===============//
-    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("RegionGrow"));
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud1_color(table, 255, 0, 0);
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud2_color(ball, 0, 255, 0);
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud3_color(box, 0, 255, 255);
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud4_color(table_outliers, 255, 255, 255);
-    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud5_color(bottle, 255, 0, 255);
-
-    viewer->addPointCloud<PointTRGB>(bottle, cloud5_color, "cloud5");
-    // viewer->addPointCloud<PointTRGB>(outliers, cloud4_color, "cloud4");
-    viewer->addPointCloud<PointTRGB>(table, cloud1_color, "cloud1");
-    // viewer->addPointCloud<PointTRGB>(ball, cloud2_color, "cloud2");
-    viewer->addPointCloud<PointTRGB>(ball_clean, cloud2_color, "cloud2");
-    // viewer->addPointCloud<PointTRGB>(box, cloud3_color, "cloud3");
-
-    // pcl::visualization::createCylinder(*bottle_coeff,30);
-
-    // pcl::ModelCoefficients::Ptr ball_coeff_tmp(new pcl::ModelCoefficients);
-    // ball_coeff_tmp->values.resize(4);
-    // ball_coeff_tmp->values[0] = ball_coeff[0];
-    // ball_coeff_tmp->values[1] = ball_coeff[1];
-    // ball_coeff_tmp->values[2] = ball_coeff[2];
-    // ball_coeff_tmp->values[3] = ball_coeff[3];
-    // pcl::visualization::createSphere(*ball_coeff_tmp,10);
-
-    
-    pcl::PointXYZ center;
-    center.x = ball_coeff[0];
-    center.y = ball_coeff[1];
-    center.z = ball_coeff[2];
-    viewer->addSphere(center, ball_coeff[3], "sphere");
-    viewer->addCylinder(*bottle_coeff, "cylinder");//添加指定高度和切片数的圆柱https://blog.csdn.net/l_h2010/article/details/41117053
-    viewer->addPlane(*table_coeff, "table_coeff"); //https://github.com/Marcus-Davi/Cpp-PCL/blob/243b6d494d424677dfa3319ab2bb37a7d5572e21/src/plane.cpp
-
-    // for(int k=0; k<clusters.size(); k++)
-    // {
-    //     pcl::PointCloud<PointTRGB>::Ptr part(new pcl::PointCloud<PointTRGB>);
-    //     pcl::PointIndices::Ptr indices(new pcl::PointIndices);
-    //     indices->indices = clusters[k].indices;
-
-    //     //https://pointclouds.org/documentation/classpcl_1_1_extract_indices_3_01pcl_1_1_p_c_l_point_cloud2_01_4.html
-    //     pcl::ExtractIndices<PointTRGB> extract;
-    //     extract.setInputCloud(scene);
-    //     extract.setIndices(indices);
-    //     extract.setNegative (false);
-    //     extract.filter(*part);
-
-    //     pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud_color(part, 255-k*255/clusters.size(),100,50+255/clusters.size());
-    //     std::string cloud_name = "cloud_name"+std::to_string(k);
-    //     viewer->addPointCloud<PointTRGB>(part, cloud_color, cloud_name);
-    // }
-    viewer->spin();
 
     return 0;
 }
