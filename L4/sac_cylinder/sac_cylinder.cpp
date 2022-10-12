@@ -23,10 +23,35 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/visualization/common/shapes.h>
 
-#include <QVTKOpenGLNativeWidget.h>
+
+// #include "vtkAutoInit.h" 
+// VTK_MODULE_INIT(vtkRenderingOpenGL2);
+// VTK_MODULE_INIT(vtkInteractionStyle);
+// VTK_MODULE_INIT(vtkRenderingFreeType);
+
 #include <vtkSmartPointer.h>
+// #include <vtkPolyData.h>
+// #include <vtkActor.h>
 
+// #include <vtkLineSource.h>
+#include <vtkTubeFilter.h>
+// #include <vtkCylinderSource.h>
 
+// #include <QVTKOpenGLNativeWidget.h>
+// #include <vtkGenericOpenGLRenderWindow.h>
+
+#include <vtkActor.h>
+#include <vtkCylinderSource.h>
+#include <vtkPolyData.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderWindowInteractor.h>
+
+#include <vtkNew.h>
+#include <vtkNamedColors.h>
+
+//https://vtk.org/Wiki/VTK/Tutorials/CMakeListsFile
 
 
 typedef pcl::PointXYZ PointT;
@@ -294,43 +319,124 @@ int main()
     auto&& min_x_pt = std::min_element(proj_axis_cloud_rotate->begin(), proj_axis_cloud_rotate->end(), [](const PointT& a, const PointT&b)
        {return a.x < b.x;}).operator->();
 
-    auto&& center_pt = PointT((max_x_pt.x + min_x_pt.x)/2.0, (max_x_pt.y + min_x_pt.y)/2.0, (max_x_pt.z + min_x_pt.z)/2.0)
+    auto&& center_pt = PointT((max_x_pt->x + min_x_pt->x)/2.0, (max_x_pt->y + min_x_pt->y)/2.0, (max_x_pt->z + min_x_pt->z)/2.0);
     cout << max_x_pt->x <<", "<< max_x_pt->y <<", "<< max_x_pt->z << ", " 
          << min_x_pt->x <<", "<< min_x_pt->y <<", "<< min_x_pt->z << ", " 
-         << center_pt->x <<", "<< center_pt->y <<", "<< center_pt->z << endl;
+         << center_pt.x <<", "<< center_pt.y <<", "<< center_pt.z << endl;
 
+    // //========================//
+    // // Visualization Cylinder
+    // //========================//
+    vtkNew<vtkNamedColors> colors;
+
+    // // Create a sphere
+    // vtkNew<vtkCylinderSource> cylinderSource;
+    // cylinderSource->SetCenter(0.0, 0.0, 0.0);
+    // cylinderSource->SetRadius(5.0);
+    // cylinderSource->SetHeight(7.0);
+    // cylinderSource->SetResolution(100);
+
+    // // Create a mapper and actor
+    // vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    // mapper->SetInputConnection(cylinderSource->GetOutputPort());
+    
+    // vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    // actor->GetProperty()->SetColor(colors->GetColor3d("Cornsilk").GetData());
+    // actor->SetMapper(mapper);
+
+    // // Create a renderer, render window, and interactor
+    // vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+    // vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+    // renderWindow->SetWindowName("Cylinder");
+    // renderWindow->AddRenderer(renderer);
+
+    // vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
+    // renderWindowInteractor->SetRenderWindow(renderWindow);
+
+    // // Add actor to the scene
+    // renderer->AddActor(actor);
+    // renderer->SetBackground(colors->GetColor3d("DarkGreen").GetData());
+
+    // // Render and Interact
+    // renderWindow->Render();
+    // renderWindowInteractor->Start();
+
+   
     //========================//
     // Visualization Cylinder
     //========================//
-    QVTKOpenGLNativeWidget* vtkWidget = new QVTKOpenGLNativeWiget(); 
-    vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
-    vtkSmartPointer<vtkRenderer> = renderer = vtkSmartPointer<vtkRenderer>::New();
+    vtkSmartPointer<vtkPoints> vtk_pts = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> vtk_vertices = vtkSmartPointer<vtkCellArray>::New();
+    for(int n = 0; n<bottle->size(); n++)
+    {
+        vtkIdType pid[1];
+        pid[0] = vtk_pts->InsertNextPoint(bottle->at(n).x, bottle->at(n).y, bottle->at(n).z);
+        vtk_vertices->InsertNextCell(1, pid);
+    }
+
+    vtkSmartPointer<vtkPolyData> polydata_cloud = vtkSmartPointer<vtkPolyData>::New();
+    polydata_cloud->SetPoints(vtk_pts);
+    polydata_cloud->SetVerts(vtk_vertices);
+
+    vtkSmartPointer<vtkPolyDataMapper> mapper_cloud = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper_cloud->SetInputData(polydata_cloud);
+
+    vtkSmartPointer<vtkActor> actor_cloud = vtkSmartPointer<vtkActor>::New();
+    actor_cloud->SetMapper(mapper_cloud);
+    actor_cloud->GetProperty()->SetColor(0.0, 1.0, 0.0);
+    actor_cloud->GetProperty()->SetPointSize(1);
+
+    
+
+    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+    vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+    
+    renderWindow->SetWindowName("Cylinder");
     renderWindow->AddRenderer(renderer);
-    pcl::visualization::PCLVisualizer vv_cylinder(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
-    vv_cylinder->addPointCloud(bottle);
+    // pcl::visualization::PCLVisualizer vv_cylinder(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
+    // vv_cylinder->addPointCloud(bottle);
 
     vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
-    lineSource->SetPoint1(max_x_pt.x, max_x_pt.y, max_x_pt.z);
-    lineSource->SetPoint2(min_x_pt.x, min_x_pt.y, min_x_pt.z);
+    lineSource->SetPoint1(max_x_pt->x, max_x_pt->y, max_x_pt->z);
+    lineSource->SetPoint2(min_x_pt->x, min_x_pt->y, min_x_pt->z);
 
     vtkSmartPointer<vtkTubeFilter> tubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
     tubeFilter->SetInputConnection(lineSource->GetOutputPort());
     tubeFilter->SetRadius(bottle_coeff->values[6]);
-    tubeFilter->SetNumberOfSides(50);
+    tubeFilter->SetNumberOfSides(20);
     tubeFilter->CappingOn();
     tubeFilter->Update();
 
     vtkSmartPointer<vtkPolyData> polydata = tubeFilter->GetOutput();
     vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->setInputData(polydata);
+    mapper->SetInputData(polydata);
 
+    // Add actor to the scene
     vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
     actor->SetMapper(mapper);
-    actor->GetProperty()->SetColor(255, 0, 0);
+    actor->GetProperty()->SetColor(255, 0, 0); //GBR
+    actor->GetProperty()->SetEdgeVisibility(1);
+    actor->GetProperty()->SetEdgeColor(0.9, 0.9, 0.4);
+    actor->GetProperty()->SetLineWidth(6);
+    actor->GetProperty()->SetPointSize(12);
+    actor->GetProperty()->SetRenderLinesAsTubes(1);
+    actor->GetProperty()->SetRenderPointsAsSpheres(1);
+    // actor->GetProperty()->SetVertexVisibility(1);
+    // actor->GetProperty()->SetVertexColor(0.5,1.0,0.8);
     renderer->AddActor(actor);
+    renderer->AddActor(actor_cloud);
+    
+    renderer->SetBackground(colors->GetColor3d("Black").GetData()); //DarkGreen
 
-    vtkWidget->setRenderWindow(vtk_viewer->getRenderWindow());
-    vtk_viewer->setupInteractor(vtkWidget->interactor(), vtkWidget->renderWindow());
+    // Render and Interact
+    vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
+    renderWindowInteractor->SetRenderWindow(renderWindow);
+
+    renderWindow->Render();
+    renderWindowInteractor->Start();
+
+    // vtkWidget->setRenderWindow(vtk_viewer->getRenderWindow());
+    // vtk_viewer->setupInteractor(vtkWidget->interactor(), vtkWidget->renderWindow());
 
 
     //=======================//
