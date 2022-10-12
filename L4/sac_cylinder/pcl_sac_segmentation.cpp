@@ -23,6 +23,11 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/visualization/common/shapes.h>
 
+#include <QVTKOpenGLNativeWidget.h>
+#include <vtkSmartPointer.h>
+
+
+
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointXYZRGB PointTRGB;
@@ -251,6 +256,83 @@ int main()
     // extract_bottle.setNegative(true);
     // extract_bottle.filter(*outliers);
 
+    // 圓柱體點都投影到軸線上
+    pcl::PointCloud<PointT>::Ptr proj_axis_cloud(new pcl::PointCloud<PointT>);
+    PointT axis_pt = PointT(bottle_coeff->values[0], bottle_coeff->values[1], bottle_coeff->values[2]);
+    PointT axis_vect = PointT(bottle_coeff->values[3], bottle_coeff->values[4], bottle_coeff->values[5]);
+    for(auto&& pt: *bottle)
+    {
+        double t = -(axis_vect.x * (axis_pt.x - pt.x) +
+                     axis_vect.y * (axis_pt.y - pt.y) +
+                     axis_vect.z * (axis_pt.z - pt.z))/
+                     (axis_vect.x*axis_vect.x + axis_vect.y*axis_vect.y + axis_vect.z*axis_vect.z);
+        PointT proj_pt = PointT(axis_pt.x + axis_vect.x*t, axis_pt.y + axis_vect.y*t, axis_pt.z + axis_vect.z*t); 
+        proj_axis_cloud->push_back(proj_pt);
+    }
+
+    pcl::visualization::PCLVisualizer::Ptr viewerCylinder(new pcl::visualization::PCLVisualizer("Cylinder"));
+    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud41_color(proj_axis_cloud, 255, 255, 255);
+    pcl::visualization::PointCloudColorHandlerCustom<PointTRGB> cloud51_color(bottle, 255, 0, 255);
+
+    viewerCylinder->addPointCloud<PointTRGB>(bottle, cloud51_color, "bottle");
+    viewerCylinder->addPointCloud<PointT>(proj_axis_cloud, cloud41_color, "proj_axis_cloud");
+    viewerCylinder->spin();
+
+    // 旋轉軸線貼合到X軸:先繞z軸轉，再繞y軸轉
+    pcl::PointCloud<PointT>::Ptr proj_axis_cloud_rotate(new pcl::PointCloud<PointT>);
+
+    double angle_z = atan2(axis_vect.y, axis_vect.x);    //axis_vect繞Z軸角度
+    double angle_y = atan2(axis_vect.z, axis_vect.x);    //axis_vect繞Y軸角度
+
+    pcl::transformPointCloud(*proj_axis_cloud, *proj_axis_cloud_rotate, Eigen::Affine3f(Eigen::AngleAxisf(angle_z, Eigen::Vector3f::UnitZ())));
+    pcl::transformPointCloud(*proj_axis_cloud_rotate, *proj_axis_cloud_rotate, Eigen::Affine3f(Eigen::AngleAxisf(angle_y, Eigen::Vector3f::UnitY())));
+
+    // 找x最大值、最小值的點
+    auto&& max_x_pt = std::max_element(proj_axis_cloud_rotate->begin(), proj_axis_cloud_rotate->end(), [](const PointT& a, const PointT&b)
+       {return a.x < b.x;}).operator->();
+
+    auto&& min_x_pt = std::min_element(proj_axis_cloud_rotate->begin(), proj_axis_cloud_rotate->end(), [](const PointT& a, const PointT&b)
+       {return a.x < b.x;}).operator->();
+
+    auto&& center_pt = PointT((max_x_pt.x + min_x_pt.x)/2.0, (max_x_pt.y + min_x_pt.y)/2.0, (max_x_pt.z + min_x_pt.z)/2.0)
+    cout << max_x_pt->x <<", "<< max_x_pt->y <<", "<< max_x_pt->z << ", " 
+         << min_x_pt->x <<", "<< min_x_pt->y <<", "<< min_x_pt->z << ", " 
+         << center_pt->x <<", "<< center_pt->y <<", "<< center_pt->z << endl;
+
+    //========================//
+    // Visualization Cylinder
+    //========================//
+    QVTKOpenGLNativeWidget* vtkWidget = new QVTKOpenGLNativeWiget(); 
+    vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+    vtkSmartPointer<vtkRenderer> = renderer = vtkSmartPointer<vtkRenderer>::New();
+    renderWindow->AddRenderer(renderer);
+    pcl::visualization::PCLVisualizer vv_cylinder(new pcl::visualization::PCLVisualizer(renderer, renderWindow, "", false));
+    vv_cylinder->addPointCloud(bottle);
+
+    vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
+    lineSource->SetPoint1(max_x_pt.x, max_x_pt.y, max_x_pt.z);
+    lineSource->SetPoint2(min_x_pt.x, min_x_pt.y, min_x_pt.z);
+
+    vtkSmartPointer<vtkTubeFilter> tubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
+    tubeFilter->SetInputConnection(lineSource->GetOutputPort());
+    tubeFilter->SetRadius(bottle_coeff->values[6]);
+    tubeFilter->SetNumberOfSides(50);
+    tubeFilter->CappingOn();
+    tubeFilter->Update();
+
+    vtkSmartPointer<vtkPolyData> polydata = tubeFilter->GetOutput();
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->setInputData(polydata);
+
+    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(255, 0, 0);
+    renderer->AddActor(actor);
+
+    vtkWidget->setRenderWindow(vtk_viewer->getRenderWindow());
+    vtk_viewer->setupInteractor(vtkWidget->interactor(), vtkWidget->renderWindow());
+
+
     //=======================//
     // ball: SACMODEL_SPHERE
     //=======================//
@@ -319,6 +401,7 @@ int main()
     // ball_coeff_tmp->values[3] = ball_coeff[3];
     // pcl::visualization::createSphere(*ball_coeff_tmp,10);
 
+    
     pcl::PointXYZ center;
     center.x = ball_coeff[0];
     center.y = ball_coeff[1];
