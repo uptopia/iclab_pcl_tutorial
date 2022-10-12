@@ -35,14 +35,15 @@ zm=ft+c
 //VTK render方式改成如同PCL Viewer
 https://www.twblogs.net/a/5b8aa38a2b71775d1ce834ed
 
-Ubuntu 20.04 + ROS + PCL 1.8.1 + VTK 7.1.1
-
-//https://icode.best/i/80586946520052
+//Ubuntu 20.04 + ROS + PCL 1.8.1 + VTK 7.1.1
+https://pointclouds.org/documentation/tutorials/using_pcl_pcl_config.html
 
 //====================//
 //  VTK Installation
 //====================//
-
+https://icode.best/i/80586946520052
+https://zhuanlan.zhihu.com/p/461910839
+https://programmer.ink/think/6209c043de08c.html
 
 //=============//
 //  QT4
