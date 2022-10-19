@@ -79,6 +79,13 @@ int main()
     normal_estimator.setKSearch(50);
     normal_estimator.compute(*normals);
 
+    // Display Normal Estimation Results
+    pcl::visualization::PCLVisualizer::Ptr view_normal(new pcl::visualization::PCLVisualizer("Normal"));
+    view_normal->addPointCloudNormals<PointT, pcl::Normal>(scene, normals, 10, 0.01, "normals"); //display normal for every 10 points, length 0.01m
+    view_normal->addPointCloud<PointT>(scene, pcl::visualization::PointCloudColorHandlerCustom<PointT>(scene, 0,0,255), "scene");
+    view_normal->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "scene");
+    view_normal->spin();
+
     //=================//
     // Region Growing
     //=================//
@@ -108,18 +115,18 @@ int main()
     }
 
     cout << "Total number of clusters is equal to " << clusters.size () << endl;
-    // cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
-    // cout << "These are the indices of the points of the initial" <<
-    //     endl << "cloud that belong to the first cluster:" << endl;
-    // int counter = 0;
-    // while (counter < clusters[0].indices.size ())
-    // {
-    //     cout << clusters[0].indices[counter] << ", ";
-    //     counter++;
-    //     if (counter % 10 == 0)
-    //         cout << endl;
-    // }
-    // cout << endl;
+    cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
+    cout << "These are the indices of the points of the initial" <<
+        endl << "cloud that belong to the first cluster:" << endl;
+    int counter = 0;
+    while (counter < clusters[0].indices.size ())
+    {
+        cout << clusters[0].indices[counter] << ", ";
+        counter++;
+        if (counter % 10 == 0)
+            cout << endl;
+    }
+    cout << endl;
 
    //==================================//
     // Visualization RegionGrow Result
@@ -134,6 +141,8 @@ int main()
     //===============//
     // Visualization
     //===============//
+    //https://www.cnblogs.com/li-yao7758258/p/6445127.html
+    //https://github.com/PointCloudLibrary/pcl/issues/2049
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("RegionGrow"));
     pcl::PointCloud<PointT>::Ptr cluster_cloud(new pcl::PointCloud<PointT>);
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
@@ -150,7 +159,14 @@ int main()
         extract.filter(*cluster_cloud);
 
         viewer->removeAllPointClouds();
-        viewer->addPointCloud<PointT>(cluster_cloud,"cluster_cloud");
+        viewer->addPointCloudNormals<PointT, pcl::Normal>(scene, normals, 10, 0.01, "normals");
+        viewer->addPointCloud<PointT>(cluster_cloud, pcl::visualization::PointCloudColorHandlerCustom<PointT>(cluster_cloud, 255,255,0), "cluster_cloud");
+        std::string text = "cluster #" + std::to_string(n);
+        text = text + ": " + std::to_string(clusters[n].indices.size() ) + " points";
+        if(n==0)
+            viewer->addText(text, 20, 60, 25, 1.0 ,0.0, 0.0,"text");
+        else
+            viewer->updateText(text, 20, 60, 25, 1.0 ,0.0, 0.0, "text");
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cluster_cloud");
         viewer->spin();
     }
