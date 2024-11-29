@@ -87,6 +87,7 @@ RUN apt update \
         # * Install Realsense libraries
         librealsense2-utils \
         # librealsense2-dkms \
+        ros-$ROS_DISTRO-realsense2-* \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
